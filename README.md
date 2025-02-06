@@ -20,6 +20,8 @@ $ sh evaluate.sh SNEM cora
 ```
 or 
 ```shell
+$ python3 -W ignore run.py --data export_table_mac_01022025 --dim 5 --k 4
+$
 $ python3 -W ignore run.py --algo BGC --data cora --alpha 0.3 --dim 5
 $ python3 -W ignore eval.py --algo BGC --data cora
 $

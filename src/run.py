@@ -29,38 +29,40 @@ from scipy.sparse.linalg import svds
 from rounding import FNEM_rounding, SNEM_rounding
 
 np.get_include()
+random.seed(0)
+np.random.seed(0)
 
-def output(args, labels):
-    if not os.path.exists('../cluster/'+args.data+'/'):
-        os.makedirs('../cluster/'+args.data+'/')
+def output(args, labels, algo):
+    if not os.path.exists('../cluster/' + args.data + '/'):
+        os.makedirs('../cluster/' + args.data + '/')
 
-    with open('../cluster/'+args.data+'/'+args.algo+'.txt', 'w') as f:
+    with open('../cluster/'+args.data+'/'+algo+'.txt', 'w') as f:
     	for i in range(len(labels)):
     		f.write(str(i)+'\t'+str(labels[i])+'\n')
 
 
 def load_matrix(data):
-	filepath = '../datasets/'+data+'/graph.txt'
-	print('loading '+filepath)
+	filepath = '../datasets/' + data + '.txt'
+	print('loading ' + filepath)
 
 	IJV = np.fromfile(filepath,sep="\t").reshape(-1,3)
+      
+	row = IJV[:, 0].astype(np.int)#.astype(np.int32)
+	col = IJV[:, 1].astype(np.int)#.astype(np.int32)
+	data = IJV[:, 2]
 
-	row = IJV[:,0].astype(np.int)
-	col = IJV[:,1].astype(np.int)
-	data = IJV[:,2]
-
-	X = csr_matrix( (data,(row,col)) )
+	X = csr_matrix((data, (row,col)) )
 	print("Data size:", X.shape)
 
 	return X
 
 
-def BGC(args):
+def BGC(args, algo):
     W = load_matrix(args.data)
 
     c = np.array(np.sqrt(W.sum(axis=0)))
-    c[c==0]=1
-    c = 1.0/c
+    c[c == 0] = 1
+    c = 1.0 / c
     c = c.flatten().tolist()
     cinv = diags(c)
 
@@ -77,11 +79,11 @@ def BGC(args):
     print("dimension=%d"%(dim))
 
     r = np.array(np.sqrt(W.sum(axis=1)))
-    r[r==0]=1
+    r[r == 0] = 1
     r = 1.0/r
     r = diags(r.flatten().tolist())
     L= Bc.dot(r)
-    U, s, V = randomized_svd(L, n_components=dim, n_iter=20)
+    U, s, V = randomized_svd(L, n_components=dim, n_iter=20, random_state=0) # added random state
     s = s**2
 
     alpha = args.alpha
@@ -95,29 +97,29 @@ def BGC(args):
     print("start performing k-means...")
     # export OPENBLAS_NUM_THREADS=2
     # export OMP_NUM_THREADS=2 
-    clustering = KMeans(n_clusters=args.k, random_state=1024).fit(U)
+    clustering = KMeans(n_clusters=args.k, random_state=0).fit(U)
     labels = clustering.labels_
 
 
     elapsedTime = time.time()-start
-    print("Elapsed time (secs) for %s clustering: %f"%(args.algo, elapsedTime))
+    print("Elapsed time (secs) for %s clustering: %f"%(algo, elapsedTime))
 
-    output(args, labels)
+    output(args, labels, algo)
 
 
-def SNEM(args):
+def SNEM(args, algo):
     W = load_matrix(args.data)
 
     c = np.array(np.sqrt(W.sum(axis=0)))
-    c[c==0]=1
-    c = 1.0/c
+    c[c == 0] = 1
+    c = 1.0 / c
     c = diags(c.flatten().tolist())
 
     P = preprocessing.normalize(W, norm='l1', axis=1)
     R = c.dot(W.T)
     r = np.array(np.sqrt(W.sum(axis=1)))
-    r[r==0]=1
-    r = 1.0/r
+    r[r == 0] = 1
+    r = 1.0 / r
     r = diags(r.flatten().tolist())
     R= R.dot(r)
     
@@ -127,7 +129,7 @@ def SNEM(args):
 
     print("dimension=%d"%(dim))
 
-    U, s, V = randomized_svd(R, n_components=dim, n_iter=5)
+    U, s, V = randomized_svd(R, n_components=dim, n_iter=5, random_state=0) # added random state
     s = s**2
 
     alpha = args.alpha
@@ -138,39 +140,39 @@ def SNEM(args):
     U = P.dot(U)
     U = preprocessing.normalize(U, norm='l2', axis=1)
 
-    U, s, V = randomized_svd(U, n_components=args.k, n_iter=5)
+    U, s, V = randomized_svd(U, n_components=args.k, n_iter=5, random_state=0) # added random state
 
     labels = SNEM_rounding(U, 40)
 
     elapsedTime = time.time()-start
-    print("Elapsed time (secs) for %s clustering: %f"%(args.algo, elapsedTime))
+    print("Elapsed time (secs) for %s clustering: %f"%(algo, elapsedTime))
 
-    output(args, labels)
+    output(args, labels, algo)
 
 
-def FNEM(args):
+def FNEM(args, algo):
     W = load_matrix(args.data)
 
     c = np.array(np.sqrt(W.sum(axis=0)))
-    c[c==0]=1
+    c[c == 0] = 1
     c = 1.0/c
     c = diags(c.flatten().tolist())
 
     P = preprocessing.normalize(W, norm='l1', axis=1)
     R = c.dot(W.T)
     r = np.array(np.sqrt(W.sum(axis=1)))
-    r[r==0]=1
+    r[r == 0] = 1
     r = 1.0/r
     r = diags(r.flatten().tolist())
     R= R.dot(r)
     
-
+   
     start = time.time()
     dim=int(args.dim*args.k)
 
     print("dimension=%d"%(dim))
 
-    U, s, V = randomized_svd(R, n_components=dim, n_iter=5)
+    U, s, V = randomized_svd(R, n_components=dim, n_iter=5, random_state=0) # added random_state
     s = s**2
 
     alpha = args.alpha
@@ -181,14 +183,14 @@ def FNEM(args):
     U = P.dot(U)
     U = preprocessing.normalize(U, norm='l2', axis=1)
 
-    U, s, V = randomized_svd(U, n_components=args.k, n_iter=5)
+    U, s, V = randomized_svd(U, n_components=args.k, n_iter=5, random_state=0) # added random_state
 
     labels = FNEM_rounding(U, 100)
 
     elapsedTime = time.time()-start
-    print("Elapsed time (secs) for %s clustering: %f"%(args.algo, elapsedTime))
+    print("Elapsed time (secs) for %s clustering: %f"%(algo, elapsedTime))
 
-    output(args, labels)
+    output(args, labels, algo)
 
 
 def main():
@@ -196,7 +198,7 @@ def main():
                             formatter_class=ArgumentDefaultsHelpFormatter,
                             conflict_handler='resolve')
 
-    parser.add_argument('--data', default='default',
+    parser.add_argument('--data', default='all_apps',
                         help='data name.')
 
     parser.add_argument('--k', default=10, type=int,
@@ -208,27 +210,25 @@ def main():
     parser.add_argument('--alpha', default=0.3, type=float,
                         help='alpha')
 
-    parser.add_argument('--algo', default="BGC",
-                        help='method name.')
+    parser.add_argument('--algos', nargs='+', default=["BGC", "FNEM", "SNEM"],
+                        help='method name (list).')
 
 
     args = parser.parse_args()
     print(args)
     
-    DATA2K={'cora': 7, 'citeseer': 6, 'blogcatalog': 6, 'flickr': 9, 'pubmed': 3, 'corafull': 70, 'asia_lastfm': 18, 'lastfm': 239, 'mind': 18, 'mag': 8}
-    if args.data in DATA2K:
-        args.k = DATA2K[args.data]
-    
     print("data=%s, #clusters=%d"%(args.data, args.k))
 
-    if args.algo=="BGC":
-        BGC(args)
-    elif args.algo=="SNEM":
-        SNEM(args)
-    elif args.algo=="FNEM":
-        FNEM(args)
-    else:
-        print("Unknown Algorithm!!!")
+    for algo in args.algos:
+        print(f'Running {algo}')
+        if algo == "BGC":
+            BGC(args, algo)
+        elif algo=="SNEM":
+            SNEM(args, algo)
+        elif algo=="FNEM":
+            FNEM(args, algo)
+        else:
+            print("Unknown Algorithm!!!")
 
 if __name__ == "__main__":
     sys.exit(main())
