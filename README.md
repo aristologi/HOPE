@@ -10,7 +10,8 @@
 - munkres = 1.1.4
 
 ## Large Datasets
-Please download them from [link](https://drive.google.com/file/d/1Z8QCJ-6NtbMFKRbY3qOpg8B3nTyrd54C)
+Generate a dataset in the format:
+
 
 ## Clustering and Evaluation
 ```shell
